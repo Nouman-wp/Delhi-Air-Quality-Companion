@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Circle, CircleMarker, Polyline, Tooltip, ZoomControl, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, Tooltip, ZoomControl, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { AQIReading, Coordinates, RouteOption } from "../../types";
 import { recommendedPlaces, type RecommendedPlace } from "../../data/recommendedPlaces";
+import { AQIHeatLayer } from "./AQIHeatLayer";
 
 interface MapViewProps {
   center: Coordinates;
@@ -79,7 +80,8 @@ export function MapView({ center, aqiGrid, destination, routes, selectedRouteId,
   return (
     <MapContainer
       center={[center.lat, center.lon]}
-      zoom={12.5}
+      zoom={11.5}
+      minZoom={10}
       className="h-full w-full"
       zoomControl={false}
       attributionControl={true}
@@ -94,22 +96,7 @@ export function MapView({ center, aqiGrid, destination, routes, selectedRouteId,
       <RecenterOnChange center={center} />
       <FitRouteBounds routes={routes} />
 
-      {aqiGrid.map((point, idx) => (
-        <Circle
-          key={idx}
-          center={[point.lat, point.lon]}
-          radius={900}
-          pathOptions={{ color: point.color, fillColor: point.color, fillOpacity: 0.18, stroke: false }}
-        />
-      ))}
-      {aqiGrid.map((point, idx) => (
-        <CircleMarker
-          key={`core-${idx}`}
-          center={[point.lat, point.lon]}
-          radius={6}
-          pathOptions={{ color: "#ffffff88", weight: 1, fillColor: point.color, fillOpacity: 0.9 }}
-        />
-      ))}
+      <AQIHeatLayer points={aqiGrid} />
 
       {/* Recommended-place pins, hidden once a destination is chosen to keep the route view clean */}
       {!destination &&

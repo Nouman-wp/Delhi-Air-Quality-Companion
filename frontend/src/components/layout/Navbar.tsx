@@ -1,10 +1,9 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import clsx from "clsx";
-import { Wind, LogOut } from "lucide-react";
-import { useAuth } from "../../contexts/AuthContext";
-import { ProfileSelector } from "../common/ProfileSelector";
+import { Wind } from "lucide-react";
+import { ThemeToggle } from "../common/ThemeToggle";
 import { NotificationPanel } from "../common/NotificationPanel";
-import { Button } from "../common/Button";
+import { UserMenu } from "./UserMenu";
 
 const NAV_LINKS = [
   { to: "/dashboard", label: "Dashboard" },
@@ -16,17 +15,17 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
 
   return (
-    <header className="sticky top-0 z-40 hidden md:flex items-center justify-between border-b border-border/60 bg-background/80 backdrop-blur-lg px-6 py-3">
-      <Link to="/dashboard" className="flex items-center gap-2 font-semibold text-lg">
-        <Wind className="text-accent" size={22} />
-        AirWise
+    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-xl md:px-6">
+      <Link to="/dashboard" className="flex items-center gap-2 text-lg font-semibold">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+          <Wind size={18} />
+        </span>
+        <span className="hidden sm:inline">AirWise</span>
       </Link>
 
-      <nav className="flex items-center gap-1">
+      <nav className="hidden items-center gap-1 md:flex">
         {NAV_LINKS.map((link) => (
           <Link
             key={link.to}
@@ -35,7 +34,7 @@ export function Navbar() {
               "rounded-lg px-3.5 py-2 text-sm font-medium transition-colors",
               location.pathname === link.to
                 ? "bg-white/10 text-white"
-                : "text-white/60 hover:text-white hover:bg-white/5"
+                : "text-white/60 hover:bg-white/5 hover:text-white"
             )}
           >
             {link.label}
@@ -43,18 +42,10 @@ export function Navbar() {
         ))}
       </nav>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
         <NotificationPanel />
-        <ProfileSelector />
-        {user ? (
-          <Button variant="ghost" onClick={() => logout()} className="!px-2.5">
-            <LogOut size={16} />
-          </Button>
-        ) : (
-          <Button variant="primary" onClick={() => navigate("/login")}>
-            Sign in
-          </Button>
-        )}
+        <UserMenu />
       </div>
     </header>
   );

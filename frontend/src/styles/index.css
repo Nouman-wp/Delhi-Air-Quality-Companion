@@ -2,12 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------------------------------------------------------ *
+ * Theme tokens — dark is the default (:root), light overrides via the
+ * `.light` class that ThemeContext toggles on <html>. Values are raw
+ * "R G B" channels so Tailwind's `rgb(var(--c-…) / <alpha>)` colours
+ * support opacity modifiers (bg-card/90, text-white/60, …).
+ * ------------------------------------------------------------------ */
+:root {
+  --c-bg: 10 10 12;
+  --c-surface: 19 19 23;
+  --c-card: 26 26 32;
+  --c-border: 42 42 50;
+  --c-fg: 255 255 255;
+
+  --map-bg: #0a0a0c;
+  --tile-filter: none;
+  color-scheme: dark;
+}
+
+:root.light {
+  --c-bg: 241 244 249;
+  --c-surface: 255 255 255;
+  --c-card: 255 255 255;
+  --c-border: 213 219 228;
+  --c-fg: 15 20 30;
+
+  --map-bg: #dfe4ea;
+  /* Esri satellite tiles are dark; nudge them brighter under a light UI */
+  --tile-filter: brightness(1.05) saturate(1.02);
+  color-scheme: light;
+}
+
 @layer base {
-  html {
-    color-scheme: dark;
-  }
   body {
-    @apply bg-background text-white;
+    @apply bg-background text-white antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
   ::selection {
     @apply bg-accent/40;
@@ -21,6 +50,10 @@
   .glass-strong {
     @apply bg-card/90 backdrop-blur-lg border border-border shadow-glass;
   }
+  /* Text that always sits on the blue accent — stays white in both themes */
+  .on-accent {
+    color: #ffffff;
+  }
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -33,36 +66,56 @@
   }
 }
 
+/* Light-mode shadows are softer/greyer than the heavy dark glass shadow */
+:root.light .glass,
+:root.light .glass-strong {
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+}
+
+/* ------------------------------------------------------------------ *
+ * Leaflet
+ * ------------------------------------------------------------------ */
 .leaflet-container {
-  background: #0a0a0c;
+  background: var(--map-bg);
   font-family: inherit;
 }
 
+.leaflet-tile-pane {
+  filter: var(--tile-filter);
+}
+
 .leaflet-control-zoom a {
-  background: #1a1a20 !important;
-  color: white !important;
-  border-color: #2a2a32 !important;
+  background: rgb(var(--c-card)) !important;
+  color: rgb(var(--c-fg)) !important;
+  border-color: rgb(var(--c-border)) !important;
 }
 
 .leaflet-control-attribution {
-  background: rgba(10, 10, 12, 0.7) !important;
-  color: rgba(255, 255, 255, 0.4) !important;
+  background: rgb(var(--c-bg) / 0.7) !important;
+  color: rgb(var(--c-fg) / 0.4) !important;
 }
 .leaflet-control-attribution a {
-  color: rgba(255, 255, 255, 0.6) !important;
+  color: rgb(var(--c-fg) / 0.6) !important;
 }
 
 .leaflet-tooltip {
-  background: #1a1a20 !important;
-  border: 1px solid #2a2a32 !important;
-  color: white !important;
+  background: rgb(var(--c-card)) !important;
+  border: 1px solid rgb(var(--c-border)) !important;
+  color: rgb(var(--c-fg)) !important;
   font-size: 12px !important;
   font-weight: 500;
   border-radius: 8px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
 }
 .leaflet-tooltip-top::before {
-  border-top-color: #2a2a32 !important;
+  border-top-color: rgb(var(--c-border)) !important;
+}
+
+/* The AQI heat canvas — a touch of blur makes the interpolated field read
+   as a continuous Strava-style plume rather than discrete blobs. */
+.aqi-heat-canvas {
+  filter: blur(6px);
+  will-change: transform;
 }
 
 .current-location-marker {
@@ -70,7 +123,7 @@
   height: 18px;
   border-radius: 9999px;
   background: #3b82f6;
-  border: 3px solid white;
+  border: 3px solid #fff;
   box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3);
 }
 
@@ -78,7 +131,7 @@
   width: 22px;
   height: 22px;
   background: #ef4444;
-  border: 3px solid white;
+  border: 3px solid #fff;
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
@@ -89,7 +142,7 @@
   height: 16px;
   border-radius: 9999px;
   background: #3b82f6;
-  border: 2.5px solid white;
+  border: 2.5px solid #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
   cursor: pointer;
   transition: transform 0.15s ease;

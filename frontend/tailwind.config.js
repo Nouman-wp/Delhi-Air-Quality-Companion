@@ -5,10 +5,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: "#0a0a0c",
-        surface: "#131317",
-        card: "#1a1a20",
-        border: "#2a2a32",
+        // All theme-aware tokens are driven by CSS variables (see index.css),
+        // defined as `<channels> / <alpha-value>` so Tailwind's opacity
+        // modifiers (bg-card/90, text-white/60, …) keep working in both themes.
+        // `white` is intentionally remapped to the foreground colour so the
+        // large body of existing `text-white` / `bg-white/x` utility classes
+        // invert automatically between dark and light mode.
+        background: "rgb(var(--c-bg) / <alpha-value>)",
+        surface: "rgb(var(--c-surface) / <alpha-value>)",
+        card: "rgb(var(--c-card) / <alpha-value>)",
+        border: "rgb(var(--c-border) / <alpha-value>)",
+        white: "rgb(var(--c-fg) / <alpha-value>)",
         accent: {
           DEFAULT: "#3b82f6",
           hover: "#60a5fa",
@@ -30,6 +37,20 @@ export default {
       },
       boxShadow: {
         glass: "0 8px 32px rgba(0, 0, 0, 0.37)",
+      },
+      keyframes: {
+        "fade-in": {
+          "0%": { opacity: "0", transform: "translateY(6px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+      },
+      animation: {
+        "fade-in": "fade-in 0.4s ease both",
+        float: "float 6s ease-in-out infinite",
       },
     },
   },

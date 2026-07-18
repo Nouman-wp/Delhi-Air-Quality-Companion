@@ -7,6 +7,21 @@
     <meta name="theme-color" content="#0a0a0c" />
     <title>AirWise AI — Delhi Air Quality Companion</title>
     <meta name="description" content="AI-powered public health companion for making healthier outdoor decisions in Delhi using live air quality, weather and routing data." />
+    <script>
+      // Apply the saved theme before first paint to avoid a flash of the
+      // wrong colour scheme. Mirrors ThemeContext's resolution logic.
+      (function () {
+        try {
+          var stored = localStorage.getItem("airwise-theme");
+          var light =
+            stored === "light" ||
+            (!stored && window.matchMedia("(prefers-color-scheme: light)").matches);
+          var root = document.documentElement;
+          root.classList.toggle("light", light);
+          root.classList.toggle("dark", !light);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body class="bg-background text-white antialiased">
     <div id="root"></div>

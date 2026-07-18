@@ -117,12 +117,38 @@ AQI — don't conflate the two when changing either.
   `backend/src/utils/aqi.util.ts` and `frontend/src/utils/aqi.ts` (network
   boundary between two independently deployable apps) — keep them in sync if
   the thresholds ever change.
+- The pollution **heatmap** is a custom canvas layer
+  (`components/map/AQIHeatLayer.tsx`), not `leaflet.heat`: each grid cell is
+  painted as a radial gradient in its own *absolute* AQI colour (so the field
+  maps exactly to the AQI scale, with no additive saturation), and a CSS
+  `blur()` on `.aqi-heat-canvas` fuses the cells into a continuous plume. It's
+  fed by `backend/src/services/aqi.service.ts`'s `getAqiGrid`, which now
+  returns a dense (~34×34), spatially-smooth field over a fixed **Delhi NCR
+  bounding box** built from Gaussian pollution sources (`POLLUTION_SOURCES`) so
+  there are no empty spots. `getCurrentAqi` (single dashboard reading) is still
+  live WAQI; the grid is deliberately simulated for a coherent gradient.
+- Layout shell: `components/layout/` — `Navbar` (top, all breakpoints: logo,
+  desktop links, `ThemeToggle`, `NotificationPanel`, `UserMenu`), `BottomNav`
+  (mobile page nav), `Footer` (hidden on `/map` — it's a full-viewport page).
+  `UserMenu` is the avatar dropdown (identity, photo upload, health-profile
+  picker, auth actions) and replaces the old standalone `ProfileSelector` in
+  the nav. Avatars come from `hooks/useAvatar.ts` (localStorage data-URL photo
+  + module-level listeners so every `<Avatar>` stays in sync); `Avatar` falls
+  back to a name-seeded gradient with initials.
 
 ## Conventions
 
-- Dark-mode-only, glassmorphism (`.glass` / `.glass-strong` utility classes in
-  `frontend/src/styles/index.css`), Tailwind color tokens defined in
-  `tailwind.config.js` (`background`, `card`, `border`, `accent`, `aqi.*`).
+- **Theming is CSS-variable driven, not dark-only.** `ThemeContext` toggles a
+  `.light` / `.dark` class on `<html>` (persisted to `airwise-theme`, with an
+  inline pre-paint script in `index.html` to avoid FOUC). All theme colours are
+  CSS vars defined for both modes in `index.css` (`--c-bg/-surface/-card/
+  -border/-fg`), surfaced through Tailwind as `rgb(var(--c-…) / <alpha-value>)`
+  so opacity modifiers keep working. **`white` is deliberately remapped to the
+  foreground var**, so the large body of existing `text-white` / `bg-white/x`
+  utilities invert automatically between themes — don't "fix" them to literal
+  colours, and don't hardcode hex in components (use the tokens). Text that
+  must stay white on the blue accent uses the `.on-accent` class. Glassmorphism
+  (`.glass` / `.glass-strong`) and the `aqi.*` / `accent` scales are unchanged.
 - Strict TypeScript in both workspaces; `noUnusedLocals`/`noUnusedParameters`
   are off (not a license to leave dead code — just not a compiler error).
 - Backend routes are thin: `routes/*.routes.ts` → `controllers/*.controller.ts`
