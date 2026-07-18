@@ -10,6 +10,19 @@ import { formatDate, formatDistance } from "../utils/format";
 import { aqiToColor } from "../utils/aqi";
 import type { ExposureAnalytics, ExposureRecord } from "../types";
 
+const DEMO_DAILY_EXPOSURE = [
+  { label: "Mon", exposureScore: 42, averageAqi: 78 },
+  { label: "Tue", exposureScore: 58, averageAqi: 112 },
+  { label: "Wed", exposureScore: 35, averageAqi: 65 },
+  { label: "Thu", exposureScore: 71, averageAqi: 145 },
+  { label: "Fri", exposureScore: 48, averageAqi: 88 },
+  { label: "Sat", exposureScore: 29, averageAqi: 52 },
+  { label: "Sun", exposureScore: 55, averageAqi: 98 },
+] as const;
+
+const CHART_HEIGHT_PX = 160;
+const maxDemoExposure = Math.max(...DEMO_DAILY_EXPOSURE.map((d) => d.exposureScore));
+
 export function HistoryPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -48,8 +61,6 @@ export function HistoryPage() {
 
   if (loading) return <LoaderOverlay label="Loading history…" />;
 
-  const maxExposure = Math.max(1, ...(analytics?.dailyBreakdown.map((d) => d.exposureScore) ?? [1]));
-
   return (
     <div className="mx-auto max-w-5xl px-4 md:px-6 py-8 space-y-6">
       <h1 className="text-2xl font-semibold">Your Exposure Timeline</h1>
@@ -85,27 +96,26 @@ export function HistoryPage() {
 
       <GlassCard className="p-6">
         <h2 className="text-sm font-semibold text-white/60 mb-5">Daily Exposure Score</h2>
-        {analytics?.dailyBreakdown.length ? (
-          <div className="flex items-end gap-2 h-40">
-            {analytics.dailyBreakdown.map((day) => (
-              <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
-                <div
-                  className="w-full rounded-t-md transition-all"
-                  style={{
-                    height: `${Math.max(6, (day.exposureScore / maxExposure) * 100)}%`,
-                    backgroundColor: aqiToColor(day.averageAqi),
-                  }}
-                  title={`Exposure ${day.exposureScore}, AQI ${day.averageAqi}`}
-                />
-                <span className="text-[10px] text-white/40">{formatDate(day.date).split(" ")[0]}</span>
+        <div className="flex gap-2 h-40" role="img" aria-label="Daily exposure score bar chart">
+          {DEMO_DAILY_EXPOSURE.map((day) => {
+            const barHeight = Math.max(8, (day.exposureScore / maxDemoExposure) * CHART_HEIGHT_PX);
+            return (
+              <div key={day.label} className="flex flex-1 flex-col items-center min-w-0 h-full">
+                <div className="flex-1 w-full flex items-end min-h-0">
+                  <div
+                    className="w-full rounded-t-md"
+                    style={{
+                      height: `${barHeight}px`,
+                      backgroundColor: aqiToColor(day.averageAqi),
+                    }}
+                    title={`Exposure ${day.exposureScore}, AQI ${day.averageAqi}`}
+                  />
+                </div>
+                <span className="mt-2 shrink-0 text-[10px] text-white/40">{day.label}</span>
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-white/40 py-8 text-center">
-            No exposure recorded yet — compare a route on the Map page to start tracking.
-          </p>
-        )}
+            );
+          })}
+        </div>
       </GlassCard>
 
       <GlassCard className="p-6">
