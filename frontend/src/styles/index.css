@@ -52,6 +52,19 @@
   color: rgba(255, 255, 255, 0.6) !important;
 }
 
+.leaflet-tooltip {
+  background: #1a1a20 !important;
+  border: 1px solid #2a2a32 !important;
+  color: white !important;
+  font-size: 12px !important;
+  font-weight: 500;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+.leaflet-tooltip-top::before {
+  border-top-color: #2a2a32 !important;
+}
+
 .current-location-marker {
   width: 18px;
   height: 18px;
@@ -69,4 +82,18 @@
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.recommended-marker {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #3b82f6;
+  border: 2.5px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.recommended-marker:hover {
+  transform: scale(1.25);
 }

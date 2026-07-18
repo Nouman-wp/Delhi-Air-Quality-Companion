@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { PersonStanding, Bike, Car, X } from "lucide-react";
+import { PersonStanding, Bike, Car, X, MapPin } from "lucide-react";
 import { useUserLocation } from "../contexts/LocationContext";
 import { useHealthProfile } from "../contexts/HealthProfileContext";
 import { getAqiGrid } from "../services/api/aqi.api";
@@ -27,7 +27,7 @@ export function MapPage() {
   const { user } = useAuth();
 
   const [aqiGrid, setAqiGrid] = useState<AQIReading[]>([]);
-  const [destination, setDestination] = useState<Coordinates | null>(null);
+  const [destination, setDestination] = useState<(Coordinates & { label: string }) | null>(null);
   const [mode, setMode] = useState<TravelMode>("walking");
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
@@ -91,20 +91,28 @@ export function MapPage() {
           destination={destination}
           routes={routes}
           selectedRouteId={selectedRouteId}
-          onMapClick={setDestination}
+          onMapClick={(c) => setDestination({ ...c, label: "Dropped pin" })}
+          onSelectPlace={(place) => setDestination({ lat: place.lat, lon: place.lon, label: place.name })}
         />
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-[1000] flex flex-col md:flex-row">
         <div className="pointer-events-auto w-full md:w-[380px] md:h-full md:overflow-y-auto scrollbar-thin bg-background/95 backdrop-blur-xl p-4 space-y-3">
-          <SearchBar onSelect={(result: SearchResult) => setDestination({ lat: result.lat, lon: result.lon })} />
+          <SearchBar
+            onSelect={(result: SearchResult) =>
+              setDestination({ lat: result.lat, lon: result.lon, label: result.name })
+            }
+          />
 
           {destination && (
-            <div className="flex items-center justify-between rounded-xl border border-border bg-card/90 backdrop-blur-lg px-4 py-2.5 text-xs text-white/60">
-              <span>Destination set — comparing routes</span>
+            <div className="flex items-center justify-between rounded-xl border border-border bg-card/90 backdrop-blur-lg px-4 py-2.5 text-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                <MapPin size={15} className="shrink-0 text-red-400" />
+                <span className="truncate font-medium">{destination.label}</span>
+              </div>
               <button
                 onClick={() => setDestination(null)}
-                className="flex items-center gap-1 text-white/40 hover:text-white"
+                className="flex shrink-0 items-center gap-1 text-xs text-white/40 hover:text-white"
               >
                 <X size={14} /> Clear
               </button>
@@ -154,7 +162,7 @@ export function MapPage() {
                 {nearbyPlaces.map((place) => (
                   <button
                     key={place.id}
-                    onClick={() => setDestination(place.location)}
+                    onClick={() => setDestination({ ...place.location, label: place.name })}
                     className="w-full rounded-lg px-3 py-2.5 text-left hover:bg-white/5 transition-colors"
                   >
                     <div className="flex items-center justify-between">

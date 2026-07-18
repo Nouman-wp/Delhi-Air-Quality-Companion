@@ -70,6 +70,13 @@ large model download. If a real embedding model is ever wired in, replace
 just that file; the `dense_vector` mapping and kNN query shape already
 expect a fixed-length float vector and don't need to change.
 
+Works against **Elastic Serverless** (a v9.x serverless project) with the
+v8.15 `@elastic/elasticsearch` client — the index creation deliberately sets
+only `mappings` (no shard/replica `settings`, which serverless rejects), and
+all queries used (geo_distance, geo_point sort, date_histogram, knn) are
+serverless-supported. Don't add index `settings` blocks or the create call
+will fail on serverless.
+
 ## Exposure Score
 
 `backend/src/services/exposure.service.ts` computes the "how much pollution
@@ -95,9 +102,17 @@ AQI — don't conflate the two when changing either.
 - `components/map/MapView.tsx` is a `react-leaflet` `MapContainer` with Esri
   World Imagery tiles — no token/fallback branch needed since the tile
   provider is keyless. Marker icons use `L.divIcon` with CSS classes
-  (`.current-location-marker` / `.destination-marker` in `index.css`)
-  instead of `L.Icon`, sidestepping Leaflet's default-marker-image bundling
-  issue with Vite.
+  (`.current-location-marker` / `.destination-marker` / `.recommended-marker`
+  in `index.css`) instead of `L.Icon`, sidestepping Leaflet's
+  default-marker-image bundling issue with Vite.
+- Destination search (`components/map/SearchBar.tsx`) hits `/api/search`
+  (Nominatim, live) when ≥2 chars are typed, and otherwise shows the curated
+  `data/recommendedPlaces.ts` list ("Popular in Delhi"). Those same
+  recommended places render as tappable pins on the map (hidden once a
+  destination is chosen). Selecting anything — a search hit, a recommended
+  pin/row, a nearby park, or a raw map click — sets `destination` (a
+  `Coordinates & { label }`), which drives route comparison. Keep the `label`
+  populated on every `setDestination` call; the banner shows it.
 - AQI color/category scale is duplicated intentionally in
   `backend/src/utils/aqi.util.ts` and `frontend/src/utils/aqi.ts` (network
   boundary between two independently deployable apps) — keep them in sync if

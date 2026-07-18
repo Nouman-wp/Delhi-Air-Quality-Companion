@@ -1,8 +1,9 @@
 import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Circle, CircleMarker, Polyline, ZoomControl, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Circle, CircleMarker, Polyline, Tooltip, ZoomControl, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { AQIReading, Coordinates, RouteOption } from "../../types";
+import { recommendedPlaces, type RecommendedPlace } from "../../data/recommendedPlaces";
 
 interface MapViewProps {
   center: Coordinates;
@@ -11,6 +12,7 @@ interface MapViewProps {
   routes: RouteOption[];
   selectedRouteId: string | null;
   onMapClick: (coords: Coordinates) => void;
+  onSelectPlace: (place: RecommendedPlace) => void;
 }
 
 const RATING_COLOR: Record<RouteOption["healthRating"], string> = {
@@ -34,6 +36,13 @@ const destinationIcon = L.divIcon({
   html: '<div class="destination-marker"></div>',
   iconSize: [24, 24],
   iconAnchor: [12, 24],
+});
+
+const recommendedIcon = L.divIcon({
+  className: "",
+  html: '<div class="recommended-marker"></div>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
 });
 
 function ClickHandler({ onMapClick }: { onMapClick: (coords: Coordinates) => void }) {
@@ -66,7 +75,7 @@ function FitRouteBounds({ routes }: { routes: RouteOption[] }) {
   return null;
 }
 
-export function MapView({ center, aqiGrid, destination, routes, selectedRouteId, onMapClick }: MapViewProps) {
+export function MapView({ center, aqiGrid, destination, routes, selectedRouteId, onMapClick, onSelectPlace }: MapViewProps) {
   return (
     <MapContainer
       center={[center.lat, center.lon]}
@@ -101,6 +110,21 @@ export function MapView({ center, aqiGrid, destination, routes, selectedRouteId,
           pathOptions={{ color: "#ffffff88", weight: 1, fillColor: point.color, fillOpacity: 0.9 }}
         />
       ))}
+
+      {/* Recommended-place pins, hidden once a destination is chosen to keep the route view clean */}
+      {!destination &&
+        recommendedPlaces.map((place) => (
+          <Marker
+            key={place.name}
+            position={[place.lat, place.lon]}
+            icon={recommendedIcon}
+            eventHandlers={{ click: () => onSelectPlace(place) }}
+          >
+            <Tooltip direction="top" offset={[0, -6]}>
+              {place.name}
+            </Tooltip>
+          </Marker>
+        ))}
 
       <Marker position={[center.lat, center.lon]} icon={currentLocationIcon} />
       {destination && <Marker position={[destination.lat, destination.lon]} icon={destinationIcon} />}

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, MapPin } from "lucide-react";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useOnClickOutside } from "../../hooks/useOnClickOutside";
 import { searchLocations } from "../../services/api/search.api";
+import { recommendedPlaces } from "../../data/recommendedPlaces";
+import { categoryIcon } from "../../utils/placeIcons";
 import type { SearchResult } from "../../types";
 
 export function SearchBar({ onSelect }: { onSelect: (result: SearchResult) => void }) {
@@ -13,6 +15,8 @@ export function SearchBar({ onSelect }: { onSelect: (result: SearchResult) => vo
   const debouncedQuery = useDebouncedValue(query, 300);
   const ref = useRef<HTMLDivElement>(null);
   useOnClickOutside(ref, () => setOpen(false));
+
+  const isSearching = query.trim().length >= 2;
 
   useEffect(() => {
     if (debouncedQuery.trim().length < 2) {
@@ -32,6 +36,12 @@ export function SearchBar({ onSelect }: { onSelect: (result: SearchResult) => vo
       cancelled = true;
     };
   }, [debouncedQuery]);
+
+  function choose(result: SearchResult) {
+    onSelect(result);
+    setQuery(result.name);
+    setOpen(false);
+  }
 
   return (
     <div ref={ref} className="relative w-full">
@@ -54,26 +64,50 @@ export function SearchBar({ onSelect }: { onSelect: (result: SearchResult) => vo
         )}
       </div>
 
-      {open && (query.trim().length >= 2 || loading) && (
-        <div className="absolute left-0 right-0 z-30 mt-2 max-h-72 overflow-y-auto scrollbar-thin rounded-xl border border-border bg-card/95 backdrop-blur-lg shadow-glass p-1.5">
-          {loading && <p className="px-3 py-2.5 text-sm text-white/40">Searching…</p>}
-          {!loading && results.length === 0 && (
-            <p className="px-3 py-2.5 text-sm text-white/40">No matches found.</p>
+      {open && (
+        <div className="absolute left-0 right-0 z-30 mt-2 max-h-80 overflow-y-auto scrollbar-thin rounded-xl border border-border bg-card/95 backdrop-blur-lg shadow-glass p-1.5">
+          {isSearching ? (
+            <>
+              {loading && <p className="px-3 py-2.5 text-sm text-white/40">Searching…</p>}
+              {!loading && results.length === 0 && (
+                <p className="px-3 py-2.5 text-sm text-white/40">No matches found.</p>
+              )}
+              {results.map((result, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => choose(result)}
+                  className="flex w-full items-start gap-2.5 rounded-lg px-3 py-2.5 text-left hover:bg-white/5 transition-colors"
+                >
+                  <MapPin size={16} className="mt-0.5 shrink-0 text-white/40" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{result.name}</p>
+                    <p className="truncate text-xs text-white/40">{result.placeName}</p>
+                  </div>
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/40">
+                Popular in Delhi
+              </p>
+              {recommendedPlaces.map((place) => (
+                <button
+                  key={place.name}
+                  onClick={() =>
+                    choose({ name: place.name, placeName: place.area, lat: place.lat, lon: place.lon })
+                  }
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left hover:bg-white/5 transition-colors"
+                >
+                  <span className="shrink-0">{categoryIcon(place.category)}</span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{place.name}</p>
+                    <p className="truncate text-xs text-white/40">{place.area}</p>
+                  </div>
+                </button>
+              ))}
+            </>
           )}
-          {results.map((result, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                onSelect(result);
-                setQuery(result.name);
-                setOpen(false);
-              }}
-              className="w-full rounded-lg px-3 py-2.5 text-left hover:bg-white/5 transition-colors"
-            >
-              <p className="text-sm font-medium">{result.name}</p>
-              <p className="text-xs text-white/40">{result.placeName}</p>
-            </button>
-          ))}
         </div>
       )}
     </div>
