@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-white;
+  }
+  ::selection {
+    @apply bg-accent/40;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-card/70 backdrop-blur-md border border-border/60 shadow-glass;
+  }
+  .glass-strong {
+    @apply bg-card/90 backdrop-blur-lg border border-border shadow-glass;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+.mapboxgl-ctrl-logo {
+  opacity: 0.6;
+}
+
+.current-location-marker {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #3b82f6;
+  border: 3px solid white;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3);
+}
