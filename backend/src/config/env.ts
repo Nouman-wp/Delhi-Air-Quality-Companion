@@ -17,7 +17,6 @@ export const env = {
   elasticsearchPassword: optional("ELASTICSEARCH_PASSWORD"),
 
   waqiToken: optional("WAQI_TOKEN"),
-  mapboxToken: optional("MAPBOX_TOKEN"),
   anthropicApiKey: optional("ANTHROPIC_API_KEY"),
 } as const;
 

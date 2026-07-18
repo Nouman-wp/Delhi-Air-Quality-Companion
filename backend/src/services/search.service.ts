@@ -1,4 +1,3 @@
-import { env } from "../config/env.js";
 import { delhiLandmarks } from "../data/delhiLandmarks.js";
 
 export interface SearchResult {
@@ -8,24 +7,33 @@ export interface SearchResult {
   lon: number;
 }
 
-const DELHI_BBOX = "76.8,28.4,77.5,28.9"; // roughly the NCR bounding box
+const DELHI_VIEWBOX = "76.8,28.9,77.5,28.4"; // left,top,right,bottom around the NCR
 
-async function searchWithMapbox(query: string): Promise<SearchResult[] | null> {
-  if (!env.mapboxToken) return null;
+// Nominatim (OpenStreetMap's geocoder) needs no API key, but its usage
+// policy requires a descriptive User-Agent identifying the calling app.
+const NOMINATIM_USER_AGENT = "AirWiseAI/1.0 (Delhi air quality companion, demo project)";
+
+async function searchWithNominatim(query: string): Promise<SearchResult[] | null> {
   try {
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-      query
-    )}.json?bbox=${DELHI_BBOX}&limit=6&access_token=${env.mapboxToken}`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const json = (await res.json()) as any;
-    if (!json.features) return null;
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.searchParams.set("q", query);
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("limit", "6");
+    url.searchParams.set("viewbox", DELHI_VIEWBOX);
+    url.searchParams.set("bounded", "1");
 
-    return json.features.map((f: any): SearchResult => ({
-      name: f.text,
-      placeName: f.place_name,
-      lat: f.center[1],
-      lon: f.center[0],
+    const res = await fetch(url.toString(), {
+      headers: { "User-Agent": NOMINATIM_USER_AGENT },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as any[];
+    if (!Array.isArray(json) || json.length === 0) return null;
+
+    return json.map((f): SearchResult => ({
+      name: f.name || f.display_name.split(",")[0],
+      placeName: f.display_name,
+      lat: parseFloat(f.lat),
+      lon: parseFloat(f.lon),
     }));
   } catch {
     return null;
@@ -41,7 +49,7 @@ function searchLocal(query: string): SearchResult[] {
 
 export async function searchPlaces(query: string): Promise<SearchResult[]> {
   if (query.trim().length < 2) return [];
-  const live = await searchWithMapbox(query);
+  const live = await searchWithNominatim(query);
   if (live && live.length > 0) return live;
   return searchLocal(query);
 }

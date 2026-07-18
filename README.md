@@ -10,17 +10,21 @@ See [`ProjectGuide.md`](./ProjectGuide.md) for the full product spec and
 
 ## Stack
 
-- **Frontend**: React + TypeScript + Vite + Tailwind CSS + Framer Motion + React Router + Mapbox GL JS
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS + Framer Motion + React Router + Leaflet
 - **Backend**: Express + TypeScript
 - **Search / geo / time-series / vector search**: Elasticsearch (with an automatic in-memory fallback so the app runs without it)
 - **Auth**: self-hosted email/password (bcrypt + JWT in an httpOnly cookie), users stored in Elasticsearch
 - **AI chat**: Anthropic Claude API, RAG-grounded on an Elasticsearch-indexed health-advisory knowledge base (falls back to a rule-based responder without an API key)
 - **AQI**: World Air Quality Index (WAQI) API, falls back to a realistic simulated model
 - **Weather**: Open-Meteo (no API key required)
-- **Routing / search**: Mapbox Directions & Geocoding APIs, fall back to a synthetic router and a curated Delhi landmark list
+- **Map tiles**: Esri World Imagery satellite tiles via Leaflet (no API key, no signup, no card required)
+- **Routing**: OSRM's free public demo server for driving directions, falls back to a synthetic router for all modes
+- **Search / geocoding**: Nominatim (OpenStreetMap), falls back to a curated Delhi landmark list
 
 Every external integration degrades gracefully to cached/simulated data if its
 API key is missing or the request fails — the app is always fully demoable.
+The map, routing, and search providers all require **zero API keys** — only
+Elasticsearch, WAQI, and Anthropic are optional upgrades over their fallbacks.
 
 ## Getting started
 
@@ -44,11 +48,11 @@ cp frontend/.env.example frontend/.env
 |---|---|---|---|
 | `ELASTICSEARCH_NODE` (+ `ELASTICSEARCH_API_KEY` or user/pass) | backend | Real geo/time-series/vector search instead of the in-memory fallback | [Elastic Cloud free trial](https://www.elastic.co/cloud) |
 | `WAQI_TOKEN` | backend | Live AQI readings instead of simulated data | [aqicn.org/data-platform/token](https://aqicn.org/data-platform/token/) (instant, free) |
-| `MAPBOX_TOKEN` | backend | Real turn-by-turn routing & geocoding | [Mapbox access tokens](https://account.mapbox.com/access-tokens/) |
 | `ANTHROPIC_API_KEY` | backend | LLM-generated chat replies instead of the rule-based fallback | [console.anthropic.com](https://console.anthropic.com/) |
-| `VITE_MAPBOX_TOKEN` | frontend | The interactive satellite map (same token as above) | same as above |
 
-Weather (Open-Meteo) needs no key at all.
+Weather (Open-Meteo), the map (Leaflet + Esri satellite tiles), routing
+(OSRM), and search (Nominatim) all need no key at all — no signup, no card,
+nothing to configure.
 
 ## Scripts
 

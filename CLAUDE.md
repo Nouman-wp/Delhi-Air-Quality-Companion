@@ -30,21 +30,25 @@ is a valid smoke test.
 ## Architecture: fallback-first external integrations
 
 Every external dependency follows the same shape: try the live API, fall back
-to something deterministic and still useful if the key is missing or the call
-fails. This isn't incidental — it's the load-bearing design decision that lets
-the app run and demo with zero configuration. When touching any of these,
-preserve the fallback path; don't make it something that only works when a
-key is present.
+to something deterministic and still useful if the key is missing, the
+provider doesn't cover the request, or the call fails. This isn't incidental
+— it's the load-bearing design decision that lets the app run and demo with
+zero configuration. Map tiles, routing, and search were deliberately chosen
+to need **no API key at all** (Leaflet/Esri, OSRM, Nominatim) after Mapbox
+was dropped for requiring a credit card even on its free tier — don't
+reintroduce a provider that needs billing info for these three. When
+touching any of these, preserve the fallback path; don't make it something
+that only works when a key is present.
 
 | Concern | Live path | Fallback |
 |---|---|---|
 | Data store | Elasticsearch (`backend/src/services/elasticStore.service.ts`) | In-memory store (`memoryStore.service.ts`), same `DataStore` interface |
 | AQI | WAQI API | Deterministic simulated model keyed on lat/lon + hour-of-day (`aqi.service.ts`) |
 | Weather | Open-Meteo (no key needed, always "live") | Static fallback reading if the request itself fails |
-| Routing | Mapbox Directions | Synthetic bezier-offset routes with mode-based speed estimates (`routing.service.ts`) |
-| Search/geocoding | Mapbox Geocoding | Curated `delhiLandmarks.ts` substring match |
+| Routing | OSRM public demo server, driving profile only (no key needed) | Synthetic bezier-offset routes with mode-based speed estimates (`routing.service.ts`) — always used for walking/cycling since OSRM's demo instance doesn't serve those profiles |
+| Search/geocoding | Nominatim/OpenStreetMap (no key needed) | Curated `delhiLandmarks.ts` substring match |
 | AI chat | Anthropic Claude API, RAG-grounded | Template-based responder using the same retrieved advisories (`ai.service.ts`) |
-| Frontend map | Mapbox GL JS | `MapFallback.tsx` — list/grid view of AQI readings instead of a blank map |
+| Frontend map | Leaflet + Esri World Imagery tiles (no key needed) | N/A — this path has no external dependency to fail on |
 
 `backend/src/services/dataStore.ts` picks Elasticsearch vs. memory once at
 startup by pinging it; nothing downstream needs to know which backend is
@@ -86,10 +90,14 @@ AQI — don't conflate the two when changing either.
 - `services/api/*.ts` — one file per backend route group, all going through
   the shared `apiClient` (axios, `withCredentials: true` for the auth cookie).
 - `pages/*` other than `Landing` are lazy-loaded in `App.tsx` — `MapPage`
-  pulls in `mapbox-gl`, which is large, so keep it off the main bundle.
-- `components/map/MapView.tsx` switches between the real Mapbox map and
-  `MapFallback.tsx` based on whether `VITE_MAPBOX_TOKEN` is set at build
-  time — both branches must keep working.
+  pulls in `leaflet`/`react-leaflet`, which are sizeable, so keep them off the
+  main bundle.
+- `components/map/MapView.tsx` is a `react-leaflet` `MapContainer` with Esri
+  World Imagery tiles — no token/fallback branch needed since the tile
+  provider is keyless. Marker icons use `L.divIcon` with CSS classes
+  (`.current-location-marker` / `.destination-marker` in `index.css`)
+  instead of `L.Icon`, sidestepping Leaflet's default-marker-image bundling
+  issue with Vite.
 - AQI color/category scale is duplicated intentionally in
   `backend/src/utils/aqi.util.ts` and `frontend/src/utils/aqi.ts` (network
   boundary between two independently deployable apps) — keep them in sync if

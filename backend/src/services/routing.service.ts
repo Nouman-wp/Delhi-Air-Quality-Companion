@@ -1,4 +1,3 @@
-import { env } from "../config/env.js";
 import type { Coordinates, RouteStep, TravelMode } from "../types/index.js";
 
 export interface RawRoute {
@@ -8,16 +7,18 @@ export interface RawRoute {
   geometry: RouteStep[];
 }
 
-const MAPBOX_PROFILE: Record<TravelMode, string> = {
-  walking: "walking",
-  cycling: "cycling",
-  driving: "driving",
-};
-
 const AVERAGE_SPEED_KPH: Record<TravelMode, number> = {
   walking: 5,
   cycling: 15,
   driving: 24, // Delhi urban traffic average
+};
+
+// OSRM's free public demo server only has the "driving" (car) road network
+// compiled — it needs no API key at all, unlike Mapbox. Walking/cycling
+// requests against it reliably come back empty, so those modes fall through
+// to the synthetic router below rather than failing.
+const OSRM_PROFILE: Partial<Record<TravelMode, string>> = {
+  driving: "driving",
 };
 
 function haversineMeters(a: Coordinates, b: Coordinates): number {
@@ -32,20 +33,20 @@ function haversineMeters(a: Coordinates, b: Coordinates): number {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-async function fetchFromMapbox(
+async function fetchFromOsrm(
   origin: Coordinates,
   destination: Coordinates,
   mode: TravelMode
 ): Promise<RawRoute[] | null> {
-  if (!env.mapboxToken) return null;
+  const profile = OSRM_PROFILE[mode];
+  if (!profile) return null;
   try {
-    const profile = MAPBOX_PROFILE[mode];
     const coords = `${origin.lon},${origin.lat};${destination.lon},${destination.lat}`;
-    const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coords}?alternatives=true&geometries=geojson&overview=full&access_token=${env.mapboxToken}`;
+    const url = `https://router.project-osrm.org/route/v1/${profile}/${coords}?alternatives=true&geometries=geojson&overview=full`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const json = (await res.json()) as any;
-    if (!json.routes?.length) return null;
+    if (json.code !== "Ok" || !json.routes?.length) return null;
 
     return json.routes.map((route: any, idx: number): RawRoute => ({
       label: idx === 0 ? "Fastest Route" : `Alternative Route ${idx + 1}`,
@@ -109,8 +110,8 @@ export async function getRawRoutes(
   origin: Coordinates,
   destination: Coordinates,
   mode: TravelMode
-): Promise<{ routes: RawRoute[]; source: "mapbox" | "simulated" }> {
-  const live = await fetchFromMapbox(origin, destination, mode);
-  if (live && live.length > 0) return { routes: live, source: "mapbox" };
+): Promise<{ routes: RawRoute[]; source: "osrm" | "simulated" }> {
+  const live = await fetchFromOsrm(origin, destination, mode);
+  if (live && live.length > 0) return { routes: live, source: "osrm" };
   return { routes: simulateRoutes(origin, destination, mode), source: "simulated" };
 }

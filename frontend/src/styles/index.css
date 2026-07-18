@@ -33,8 +33,23 @@
   }
 }
 
-.mapboxgl-ctrl-logo {
-  opacity: 0.6;
+.leaflet-container {
+  background: #0a0a0c;
+  font-family: inherit;
+}
+
+.leaflet-control-zoom a {
+  background: #1a1a20 !important;
+  color: white !important;
+  border-color: #2a2a32 !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(10, 10, 12, 0.7) !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+.leaflet-control-attribution a {
+  color: rgba(255, 255, 255, 0.6) !important;
 }
 
 .current-location-marker {
@@ -44,4 +59,14 @@
   background: #3b82f6;
   border: 3px solid white;
   box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3);
+}
+
+.destination-marker {
+  width: 22px;
+  height: 22px;
+  background: #ef4444;
+  border: 3px solid white;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }

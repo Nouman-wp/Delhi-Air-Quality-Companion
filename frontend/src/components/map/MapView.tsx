@@ -1,10 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Circle, CircleMarker, Polyline, ZoomControl, useMap, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import type { AQIReading, Coordinates, RouteOption } from "../../types";
-import { MapFallback } from "./MapFallback";
-
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
 interface MapViewProps {
   center: Coordinates;
@@ -15,173 +13,112 @@ interface MapViewProps {
   onMapClick: (coords: Coordinates) => void;
 }
 
-const AQI_SOURCE_ID = "aqi-heatmap";
-const ROUTE_SOURCE_PREFIX = "route-";
+const RATING_COLOR: Record<RouteOption["healthRating"], string> = {
+  recommended: "#22c55e",
+  moderate: "#eab308",
+  avoid: "#ef4444",
+};
 
-export function MapView(props: MapViewProps) {
-  if (!MAPBOX_TOKEN) {
-    return <MapFallback {...props} />;
-  }
-  return <MapboxMap {...props} />;
+// Custom divIcons instead of L.Icon — avoids Vite's default marker-image
+// bundling issue (leaflet's default icon URLs don't resolve correctly
+// through the bundler without extra asset config).
+const currentLocationIcon = L.divIcon({
+  className: "",
+  html: '<div class="current-location-marker"></div>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
+const destinationIcon = L.divIcon({
+  className: "",
+  html: '<div class="destination-marker"></div>',
+  iconSize: [24, 24],
+  iconAnchor: [12, 24],
+});
+
+function ClickHandler({ onMapClick }: { onMapClick: (coords: Coordinates) => void }) {
+  useMapEvents({
+    click(e) {
+      onMapClick({ lat: e.latlng.lat, lon: e.latlng.lng });
+    },
+  });
+  return null;
 }
 
-function MapboxMap({ center, aqiGrid, destination, routes, selectedRouteId, onMapClick }: MapViewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const currentMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const destMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
+function RecenterOnChange({ center }: { center: Coordinates }) {
+  const map = useMap();
   useEffect(() => {
-    mapboxgl.accessToken = MAPBOX_TOKEN!;
-    const map = new mapboxgl.Map({
-      container: containerRef.current!,
-      style: "mapbox://styles/mapbox/satellite-streets-v12",
-      center: [center.lon, center.lat],
-      zoom: 12.5,
-      attributionControl: false,
-    });
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
-    map.on("load", () => setLoaded(true));
-    map.on("click", (e) => onMapClick({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
-    mapRef.current = map;
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
+    map.flyTo([center.lat, center.lon], map.getZoom(), { duration: 0.8 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    map.flyTo({ center: [center.lon, center.lat], essential: true });
-
-    if (!currentMarkerRef.current) {
-      const el = document.createElement("div");
-      el.className = "current-location-marker";
-      currentMarkerRef.current = new mapboxgl.Marker({ element: el }).setLngLat([center.lon, center.lat]).addTo(map);
-    } else {
-      currentMarkerRef.current.setLngLat([center.lon, center.lat]);
-    }
   }, [center.lat, center.lon]);
+  return null;
+}
 
+function FitRouteBounds({ routes }: { routes: RouteOption[] }) {
+  const map = useMap();
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
+    if (routes.length === 0) return;
+    const points = routes.flatMap((r) => r.geometry.map((p): [number, number] => [p.lat, p.lon]));
+    if (points.length === 0) return;
+    map.fitBounds(L.latLngBounds(points), { padding: [80, 80], maxZoom: 15 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routes]);
+  return null;
+}
 
-    if (destination) {
-      if (!destMarkerRef.current) {
-        destMarkerRef.current = new mapboxgl.Marker({ color: "#3b82f6" })
-          .setLngLat([destination.lon, destination.lat])
-          .addTo(map);
-      } else {
-        destMarkerRef.current.setLngLat([destination.lon, destination.lat]);
-      }
-    } else if (destMarkerRef.current) {
-      destMarkerRef.current.remove();
-      destMarkerRef.current = null;
-    }
-  }, [destination?.lat, destination?.lon]);
+export function MapView({ center, aqiGrid, destination, routes, selectedRouteId, onMapClick }: MapViewProps) {
+  return (
+    <MapContainer
+      center={[center.lat, center.lon]}
+      zoom={12.5}
+      className="h-full w-full"
+      zoomControl={false}
+      attributionControl={true}
+    >
+      <TileLayer
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        attribution="Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics"
+        maxZoom={19}
+      />
+      <ZoomControl position="bottomright" />
+      <ClickHandler onMapClick={onMapClick} />
+      <RecenterOnChange center={center} />
+      <FitRouteBounds routes={routes} />
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !loaded || aqiGrid.length === 0) return;
+      {aqiGrid.map((point, idx) => (
+        <Circle
+          key={idx}
+          center={[point.lat, point.lon]}
+          radius={900}
+          pathOptions={{ color: point.color, fillColor: point.color, fillOpacity: 0.18, stroke: false }}
+        />
+      ))}
+      {aqiGrid.map((point, idx) => (
+        <CircleMarker
+          key={`core-${idx}`}
+          center={[point.lat, point.lon]}
+          radius={6}
+          pathOptions={{ color: "#ffffff88", weight: 1, fillColor: point.color, fillOpacity: 0.9 }}
+        />
+      ))}
 
-    const geojson: GeoJSON.FeatureCollection = {
-      type: "FeatureCollection",
-      features: aqiGrid.map((point) => ({
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [point.lon, point.lat] },
-        properties: { aqi: point.aqi, color: point.color },
-      })),
-    };
+      <Marker position={[center.lat, center.lon]} icon={currentLocationIcon} />
+      {destination && <Marker position={[destination.lat, destination.lon]} icon={destinationIcon} />}
 
-    const existing = map.getSource(AQI_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
-    if (existing) {
-      existing.setData(geojson);
-    } else {
-      map.addSource(AQI_SOURCE_ID, { type: "geojson", data: geojson });
-      map.addLayer({
-        id: `${AQI_SOURCE_ID}-glow`,
-        type: "circle",
-        source: AQI_SOURCE_ID,
-        paint: {
-          "circle-radius": 55,
-          "circle-color": ["get", "color"],
-          "circle-opacity": 0.22,
-          "circle-blur": 1,
-        },
-      });
-      map.addLayer({
-        id: `${AQI_SOURCE_ID}-core`,
-        type: "circle",
-        source: AQI_SOURCE_ID,
-        paint: {
-          "circle-radius": 6,
-          "circle-color": ["get", "color"],
-          "circle-opacity": 0.9,
-          "circle-stroke-width": 1,
-          "circle-stroke-color": "#ffffff33",
-        },
-      });
-    }
-  }, [aqiGrid, loaded]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !loaded) return;
-
-    // clear previously drawn routes
-    const style = map.getStyle();
-    style?.layers?.forEach((layer) => {
-      if (layer.id.startsWith(ROUTE_SOURCE_PREFIX)) {
-        if (map.getLayer(layer.id)) map.removeLayer(layer.id);
-      }
-    });
-    Object.keys(style?.sources ?? {}).forEach((sourceId) => {
-      if (sourceId.startsWith(ROUTE_SOURCE_PREFIX) && map.getSource(sourceId)) {
-        map.removeSource(sourceId);
-      }
-    });
-
-    routes.forEach((route) => {
-      const sourceId = `${ROUTE_SOURCE_PREFIX}${route.id}`;
-      const isSelected = route.id === selectedRouteId;
-      const color =
-        route.healthRating === "recommended" ? "#22c55e" : route.healthRating === "moderate" ? "#eab308" : "#ef4444";
-
-      map.addSource(sourceId, {
-        type: "geojson",
-        data: {
-          type: "Feature",
-          geometry: {
-            type: "LineString",
-            coordinates: route.geometry.map((p) => [p.lon, p.lat]),
-          },
-          properties: {},
-        },
-      });
-      map.addLayer({
-        id: sourceId,
-        type: "line",
-        source: sourceId,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: {
-          "line-color": color,
-          "line-width": isSelected ? 6 : 3,
-          "line-opacity": isSelected || selectedRouteId === null ? 0.95 : 0.35,
-        },
-      });
-    });
-
-    if (routes.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-      routes.forEach((r) => r.geometry.forEach((p) => bounds.extend([p.lon, p.lat])));
-      map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
-    }
-  }, [routes, selectedRouteId, loaded]);
-
-  return <div ref={containerRef} className="h-full w-full" />;
+      {routes.map((route) => {
+        const isSelected = route.id === selectedRouteId;
+        return (
+          <Polyline
+            key={route.id}
+            positions={route.geometry.map((p): [number, number] => [p.lat, p.lon])}
+            pathOptions={{
+              color: RATING_COLOR[route.healthRating],
+              weight: isSelected ? 6 : 3,
+              opacity: isSelected || selectedRouteId === null ? 0.95 : 0.35,
+            }}
+          />
+        );
+      })}
+    </MapContainer>
+  );
 }

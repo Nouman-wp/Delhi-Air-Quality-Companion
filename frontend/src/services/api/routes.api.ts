@@ -4,7 +4,7 @@ import type { Coordinates, HealthProfile, RouteOption, TravelMode } from "../../
 export interface RouteComparisonResult {
   routes: RouteOption[];
   recommendedRouteId: string;
-  routingSource: "mapbox" | "simulated";
+  routingSource: "osrm" | "simulated";
 }
 
 export async function compareRoutes(params: {

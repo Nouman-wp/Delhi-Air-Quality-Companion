@@ -5,7 +5,7 @@ export interface LandmarkSeed {
   lon: number;
 }
 
-/** Fallback autocomplete source used when no Mapbox token is configured. */
+/** Fallback autocomplete source used when Nominatim is unreachable or rate-limited. */
 export const delhiLandmarks: LandmarkSeed[] = [
   { name: "Connaught Place", placeName: "Connaught Place, New Delhi", lat: 28.6315, lon: 77.2167 },
   { name: "India Gate", placeName: "India Gate, New Delhi", lat: 28.6129, lon: 77.2295 },

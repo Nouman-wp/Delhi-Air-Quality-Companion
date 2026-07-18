@@ -95,7 +95,7 @@ export function MapPage() {
         />
       </div>
 
-      <div className="pointer-events-none absolute inset-0 flex flex-col md:flex-row">
+      <div className="pointer-events-none absolute inset-0 z-[1000] flex flex-col md:flex-row">
         <div className="pointer-events-auto w-full md:w-[380px] md:h-full md:overflow-y-auto scrollbar-thin bg-background/95 backdrop-blur-xl p-4 space-y-3">
           <SearchBar onSelect={(result: SearchResult) => setDestination({ lat: result.lat, lon: result.lon })} />
 
@@ -180,7 +180,7 @@ export function MapPage() {
         <div className="flex-1" />
       </div>
 
-      <div className="pointer-events-none absolute bottom-4 left-4 md:left-[396px] hidden sm:block">
+      <div className="pointer-events-none absolute bottom-4 left-4 md:left-[396px] z-[1000] hidden sm:block">
         <div className="pointer-events-auto">
           <AQILegend />
         </div>
