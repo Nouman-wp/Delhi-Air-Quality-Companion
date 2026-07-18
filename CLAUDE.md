@@ -47,7 +47,7 @@ that only works when a key is present.
 | Weather | Open-Meteo (no key needed, always "live") | Static fallback reading if the request itself fails |
 | Routing | OSRM public demo server, driving profile only (no key needed) | Synthetic bezier-offset routes with mode-based speed estimates (`routing.service.ts`) — always used for walking/cycling since OSRM's demo instance doesn't serve those profiles |
 | Search/geocoding | Nominatim/OpenStreetMap (no key needed) | Curated `delhiLandmarks.ts` substring match |
-| AI chat | Anthropic Claude API, RAG-grounded | Template-based responder using the same retrieved advisories (`ai.service.ts`) |
+| AI chat | OpenRouter (OpenAI-compatible, free model by default), RAG-grounded | Template-based responder using the same retrieved advisories (`ai.service.ts`) |
 | Frontend map | Leaflet + Esri World Imagery tiles (no key needed) | N/A — this path has no external dependency to fail on |
 
 `backend/src/services/dataStore.ts` picks Elasticsearch vs. memory once at

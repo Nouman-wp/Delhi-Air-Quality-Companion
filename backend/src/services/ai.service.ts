@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../config/env.js";
 import { retrieveAdvisories } from "./advisories.service.js";
 import { getCurrentAqi } from "./aqi.service.js";
@@ -6,13 +5,87 @@ import { getCurrentWeather } from "./weather.service.js";
 import { aqiToLabel, aqiToCategory } from "../utils/aqi.util.js";
 import type { ChatTurn, Coordinates, HealthProfile } from "../types/index.js";
 
-const anthropic = env.anthropicApiKey ? new Anthropic({ apiKey: env.anthropicApiKey }) : null;
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const SYSTEM_PROMPT_PREFIX = `You are AirWise, an AI public-health companion for Delhi residents dealing with air pollution.
 Always prioritize the user's health. Never fabricate air quality or weather data — only use the
 live figures and advisory excerpts provided in context. If context is insufficient, say so plainly.
 Keep answers concise (2-5 sentences), warm, and directly actionable. When relevant, reference the
 person's health profile.`;
+
+/**
+ * Backup free models tried, in order, when the configured model is congested.
+ * OpenRouter's free tier frequently returns "Provider returned error" (429)
+ * on any single model, so cycling through a few keeps the LLM path alive far
+ * more often than relying on one. All are clean, non-reasoning-leaking
+ * instruct/chat models. Anything not reachable just falls through to the next,
+ * and ultimately to the rule-based responder.
+ */
+const FALLBACK_MODELS = [
+  "openai/gpt-oss-20b:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+];
+
+async function callModel(
+  model: string,
+  systemPrompt: string,
+  history: ChatTurn[],
+  message: string
+): Promise<string | null> {
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.openrouterApiKey}`,
+        "Content-Type": "application/json",
+        // Optional attribution headers OpenRouter uses for its dashboard.
+        "HTTP-Referer": "http://localhost:5173",
+        "X-Title": "AirWise AI",
+      },
+      body: JSON.stringify({
+        // Generous budget: some free models (e.g. gpt-oss) are reasoning
+        // models that spend tokens thinking before the visible answer, so a
+        // low cap truncates the reply mid-sentence.
+        model,
+        max_tokens: 900,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...history.map((h) => ({ role: h.role, content: h.content })),
+          { role: "user", content: message },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      console.warn(`[ai.service] ${model} returned ${res.status}, trying next model.`);
+      return null;
+    }
+    const json = (await res.json()) as any;
+    const reply = json.choices?.[0]?.message?.content;
+    return typeof reply === "string" && reply.trim().length > 0 ? reply.trim() : null;
+  } catch (err) {
+    console.warn(`[ai.service] ${model} request failed, trying next model:`, err);
+    return null;
+  }
+}
+
+/**
+ * Calls OpenRouter's OpenAI-compatible chat completions endpoint, trying the
+ * configured model first and then a short list of backup free models. Returns
+ * null only if every model fails, so the caller transparently falls back to
+ * the rule-based responder.
+ */
+async function callOpenRouter(systemPrompt: string, history: ChatTurn[], message: string): Promise<string | null> {
+  if (!env.openrouterApiKey) return null;
+  const models = [env.openrouterModel, ...FALLBACK_MODELS].filter((m, i, arr) => arr.indexOf(m) === i);
+  for (const model of models) {
+    const reply = await callModel(model, systemPrompt, history, message);
+    if (reply) return reply;
+  }
+  console.error("[ai.service] All OpenRouter models unavailable, falling back to rule-based reply.");
+  return null;
+}
 
 export async function generateChatReply(params: {
   message: string;
@@ -45,9 +118,7 @@ export async function generateChatReply(params: {
 
   const groundedOn = relevantAdvisories.map((a) => a.id);
 
-  if (anthropic) {
-    try {
-      const systemPrompt = `${SYSTEM_PROMPT_PREFIX}
+  const systemPrompt = `${SYSTEM_PROMPT_PREFIX}
 
 ${healthProfile ? `User's health profile: ${healthProfile}.` : "User has not set a health profile."}
 
@@ -57,30 +128,16 @@ ${liveContext}
 Relevant health advisories retrieved via vector search:
 ${advisoryContext}`;
 
-      const response = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-latest",
-        max_tokens: 400,
-        system: systemPrompt,
-        messages: [
-          ...history.map((h) => ({ role: h.role, content: h.content })),
-          { role: "user" as const, content: message },
-        ],
-      });
-
-      const textBlock = response.content.find((b) => b.type === "text");
-      if (textBlock && textBlock.type === "text") {
-        return { reply: textBlock.text, groundedOn };
-      }
-    } catch (err) {
-      console.error("[ai.service] Anthropic call failed, falling back to rule-based reply:", err);
-    }
+  const llmReply = await callOpenRouter(systemPrompt, history, message);
+  if (llmReply) {
+    return { reply: llmReply, groundedOn };
   }
 
   return { reply: ruleBasedReply({ message, location, healthProfile, advisories: relevantAdvisories, liveContext }), groundedOn };
 }
 
 /**
- * Deterministic, template-based responder used when no ANTHROPIC_API_KEY is
+ * Deterministic, template-based responder used when no OPENROUTER_API_KEY is
  * configured or the live API call fails, so the chat feature never breaks.
  */
 function ruleBasedReply(params: {

@@ -17,7 +17,8 @@ export const env = {
   elasticsearchPassword: optional("ELASTICSEARCH_PASSWORD"),
 
   waqiToken: optional("WAQI_TOKEN"),
-  anthropicApiKey: optional("ANTHROPIC_API_KEY"),
+  openrouterApiKey: optional("OPENROUTER_API_KEY"),
+  openrouterModel: optional("OPENROUTER_MODEL") ?? "openai/gpt-oss-20b:free",
 } as const;
 
 export const isProduction = env.nodeEnv === "production";

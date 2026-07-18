@@ -14,7 +14,7 @@ See [`ProjectGuide.md`](./ProjectGuide.md) for the full product spec and
 - **Backend**: Express + TypeScript
 - **Search / geo / time-series / vector search**: Elasticsearch (with an automatic in-memory fallback so the app runs without it)
 - **Auth**: self-hosted email/password (bcrypt + JWT in an httpOnly cookie), users stored in Elasticsearch
-- **AI chat**: Anthropic Claude API, RAG-grounded on an Elasticsearch-indexed health-advisory knowledge base (falls back to a rule-based responder without an API key)
+- **AI chat**: OpenRouter (any LLM, free Llama model by default), RAG-grounded on an Elasticsearch-indexed health-advisory knowledge base (falls back to a rule-based responder without an API key)
 - **AQI**: World Air Quality Index (WAQI) API, falls back to a realistic simulated model
 - **Weather**: Open-Meteo (no API key required)
 - **Map tiles**: Esri World Imagery satellite tiles via Leaflet (no API key, no signup, no card required)
@@ -24,7 +24,7 @@ See [`ProjectGuide.md`](./ProjectGuide.md) for the full product spec and
 Every external integration degrades gracefully to cached/simulated data if its
 API key is missing or the request fails — the app is always fully demoable.
 The map, routing, and search providers all require **zero API keys** — only
-Elasticsearch, WAQI, and Anthropic are optional upgrades over their fallbacks.
+Elasticsearch, WAQI, and OpenRouter are optional upgrades over their fallbacks.
 
 ## Getting started
 
@@ -48,7 +48,8 @@ cp frontend/.env.example frontend/.env
 |---|---|---|---|
 | `ELASTICSEARCH_NODE` (+ `ELASTICSEARCH_API_KEY` or user/pass) | backend | Real geo/time-series/vector search instead of the in-memory fallback | [Elastic Cloud free trial](https://www.elastic.co/cloud) |
 | `WAQI_TOKEN` | backend | Live AQI readings instead of simulated data | [aqicn.org/data-platform/token](https://aqicn.org/data-platform/token/) (instant, free) |
-| `ANTHROPIC_API_KEY` | backend | LLM-generated chat replies instead of the rule-based fallback | [console.anthropic.com](https://console.anthropic.com/) |
+| `OPENROUTER_API_KEY` | backend | LLM-generated chat replies instead of the rule-based fallback | [openrouter.ai/keys](https://openrouter.ai/keys) (free models available) |
+| `OPENROUTER_MODEL` | backend | Optional — which model to use; defaults to a free Llama model | [openrouter.ai/models](https://openrouter.ai/models) |
 
 Weather (Open-Meteo), the map (Leaflet + Esri satellite tiles), routing
 (OSRM), and search (Nominatim) all need no key at all — no signup, no card,
